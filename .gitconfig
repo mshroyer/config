@@ -6,5 +6,15 @@
 	st = status
 	ci = commit
 	co = checkout
+	br = branch
+	lg = log
+	graph = log --graph --decorate --oneline --date-order
+
+[color]
+	branch = auto
+	diff = auto
+	interactive = auto
+	status = auto
+
 [push]
 	default = simple
