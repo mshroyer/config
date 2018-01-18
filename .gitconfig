@@ -1,0 +1,10 @@
+[user]
+	email = mark@shroyer.name
+	name = Mark Shroyer
+
+[alias]
+	st = status
+	ci = commit
+	co = checkout
+[push]
+	default = simple
