@@ -22,6 +22,14 @@ precmd () { RPROMPT="%(?..%?)%" }
 # Use meta-backspace to delete individual path components, not entire path...
 WORDCHARS=${WORDCHARS//\/}
 
+# Color ls output.
+local platform=$(uname)
+if [[ $platform = Linux ]]; then
+    alias ls='ls --color=always'
+elif [[ $platform = Darwin ]]; then
+    alias ls='ls -G'
+fi
+
 alias l="ls"
 alias la="ls -a"
 alias ll="ls -l"
