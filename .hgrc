@@ -1,0 +1,13 @@
+[ui]
+username = Mark Shroyer <mark@shroyer.name>
+merge = emacs
+
+[merge-tools]
+emacs.executable = emacsclient
+emacs.args = -c -nw --alternate-editor=emacs -q --eval "(ediff-merge-with-ancestor \""$local"\" \""$other"\" \""$base"\" nil \""$output"\")"
+meld.executable = meld
+meld.args = $local $base $other -o $output
+
+[extensions]
+strip =
+topic =
