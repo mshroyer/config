@@ -12,3 +12,15 @@ meld.args = $local $base $other -o $output
 strip =
 evolve = ~/.hgext/evolve/hgext3rd/evolve
 topic = ~/.hgext/evolve/hgext3rd/topic
+
+[alias]
+# Rebase all topics onto the given destination.
+rebasetopics = !$HG topics \
+    | awk '{ print $$1 != "*" ? $$1 : $$2; }' \
+    | xargs -t -n1 -I{} $HG rebase -d $1 -r 'topic({})'
+
+# Amend, evolve, and return to the original changeset in a single command.
+# An explicit checkout is needed because the evolve command likes to
+# implicitly checkout tip.
+amendvolve = !id=$($HG id -r . | awk '{ print $$1; }'); \
+    $HG amend && $HG evolve -a && $HG --hidden checkout "max(allsuccessors($id))"
