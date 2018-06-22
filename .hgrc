@@ -24,3 +24,5 @@ rebasetopics = !$HG topics \
 # implicitly checkout tip.
 amendvolve = !id=$($HG id -r . | awk '{ print $$1; }'); \
     $HG amend && $HG evolve -a && $HG --hidden checkout "max(allsuccessors($id))"
+
+lc = log -G -T compact
