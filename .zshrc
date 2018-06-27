@@ -30,6 +30,8 @@ elif [[ $platform = Darwin ]]; then
     alias ls='ls -G'
 fi
 
+alias help="run-help"
+
 alias l="ls"
 alias la="ls -a"
 alias ll="ls -l"
