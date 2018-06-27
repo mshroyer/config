@@ -30,6 +30,11 @@ elif [[ $platform = Darwin ]]; then
     alias ls='ls -G'
 fi
 
+# Edit command line.
+autoload -U edit-command-line
+zle -N edit-command-line
+bindkey '^x^e' edit-command-line
+
 alias help="run-help"
 
 alias l="ls"
