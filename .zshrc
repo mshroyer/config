@@ -60,6 +60,6 @@ back() {
     nohup "$1" >/dev/null &
 }
 
-if [ -f "$HOME/.zshrc.local" ]; then
+if [[ -f $HOME/.zshrc.local ]]; then
     . "$HOME/.zshrc.local"
 fi
