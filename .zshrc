@@ -55,7 +55,7 @@ alias scpn="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
 alias config="$(which git) --git-dir=$HOME/.cfg/ --work-tree=$HOME"
 
-alias t="tzwatch -f '%a\ %F\ %T\ %Z\ %z'"
+alias t="tzwatch -f '%a\ %F\ %T\ %4Z\ %z'"
 
 # Helper for running something as a background nohup job.
 back() {
