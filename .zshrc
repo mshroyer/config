@@ -2,6 +2,8 @@ HISTFILE=~/.zsh_histfile
 HISTSIZE=10000
 SAVEHIST=10000
 
+export PATH="$PATH:$HOME/cfg.bin"
+
 setopt appendhistory sharehistory
 
 # Use Emacs-style key bindings
