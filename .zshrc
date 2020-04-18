@@ -5,6 +5,7 @@ SAVEHIST=10000
 export PATH="$PATH:$HOME/cfg.bin"
 
 setopt appendhistory sharehistory
+setopt HIST_IGNORE_SPACE
 
 # Use Emacs-style key bindings
 bindkey -e
