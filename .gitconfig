@@ -1,3 +1,7 @@
+[core]
+	autocrlf = false
+	eol = lf
+
 [user]
 	email = mark@shroyer.name
 	name = Mark Shroyer
@@ -27,3 +31,4 @@
 
 [pull]
 	ff = only
+
