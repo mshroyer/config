@@ -1,3 +1,6 @@
 [ui]
 username = Mark Shroyer <mshroyer@fb.com>
 
+[commitcloud]
+updateonmove = true
+
