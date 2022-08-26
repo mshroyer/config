@@ -1,6 +1,13 @@
 [ui]
 username = Mark Shroyer <mshroyer@fb.com>
+merge = emacs
+
+[merge-tools]
+emacs.executable = ediff_merge.sh
+emacs.args = $local $other $base $output
+vimdiff.executable = vimdiff
+vimdiff.args = -f -d $output -M $local $base $other -c "wincmd J" -c "set modifiable" -c "set write"
+vimdiff.premerge = keep
 
 [commitcloud]
 updateonmove = true
-
