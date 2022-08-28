@@ -29,7 +29,7 @@ WORDCHARS=${WORDCHARS//\/}
 local platform=$(uname)
 if [[ $platform = Linux ]]; then
     alias ls='ls --color=always'
-elif [[ $platform = Darwin ]]; then
+elif [[ $platform = Darwin ]] || [[ $platform = FreeBSD ]]; then
     alias ls='ls -G'
 fi
 
