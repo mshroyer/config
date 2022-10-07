@@ -47,7 +47,7 @@ alias h="fc -l"
 alias j="jobs"
 alias m="${PAGER:-more}"
 
-# Run an hg command and then print ssl and status.
+# Run an hg command and then print sl and status.
 hgs() {
 	local cmd=true
 	if [ $# -ne 0 ]; then
@@ -57,7 +57,7 @@ hgs() {
 		true
 	fi
 	if [ $? -eq 0 ]; then
-		hg ssl && hg status
+		hg sl && hg status
 	fi
 }
 
