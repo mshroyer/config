@@ -52,6 +52,7 @@ hgs() {
 	local cmd=true
 	if [ $# -ne 0 ]; then
 		hg $@
+		sleep 1
 	else
 		true
 	fi
