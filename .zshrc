@@ -11,7 +11,9 @@ setopt HIST_IGNORE_SPACE
 bindkey -e
 
 # Completion
+fpath+=~/.zfunc
 zstyle :compinstall filename "$HOME/.zshrc"
+zstyle ':completion:*' menu select
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path ~/.zsh_cache
 autoload -Uz compinit
