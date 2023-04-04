@@ -2,6 +2,9 @@
 username = Mark Shroyer <mshroyer@fb.com>
 merge = emacs
 
+[zsh]
+completion-description = true
+
 [merge-tools]
 emacs.executable = ediff_merge.sh
 emacs.args = $local $other $base $output
