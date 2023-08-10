@@ -1,3 +1,8 @@
+# This needs to be sourced before we get to .zshrc.local
+if [ -f /usr/facebook/ops/rc/master.zshrc ]; then
+	source /usr/facebook/ops/rc/master.zshrc
+fi
+
 HISTFILE=~/.zsh_histfile
 HISTSIZE=10000
 SAVEHIST=10000
