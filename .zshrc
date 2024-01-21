@@ -16,8 +16,8 @@ zstyle :compinstall filename "$HOME/.zshrc"
 zstyle ':completion:*' menu select
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path ~/.zsh_cache
-autoload -Uz compinit
-compinit
+autoload bashcompinit && bashcompinit
+autoload -Uz compinit && compinit
 
 # Left and right prompt style
 setopt prompt_subst
