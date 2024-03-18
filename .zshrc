@@ -35,6 +35,23 @@ elif [[ $platform = Darwin ]] || [[ $platform = FreeBSD ]]; then
     alias ls='ls -G'
 fi
 
+# My tmux configuration sets the default terminal to tmux-256color, which I
+# have available everywhere I'm running this configuration set.  On many Linux
+# systems, I also have the tmux-direct terminfo available, which when set will
+# convince Emacs to enable true color support.  On other systems, such as
+# Amazon Linux 2023, we don't have tmux-direct but can still convince Emacs to
+# use true colors by setting COLORTERM.
+#
+# See Chad's post for details:
+# https://chadaustin.me/2024/01/truecolor-terminal-emacs/
+if [[ $TERM = tmux-256color ]]; then
+	if [[ -x /usr/bin/toe ]] && \
+		   [[ ! -z $(/usr/bin/toe -a | grep tmux-direct) ]]; then
+		export TERM=tmux-direct
+	fi
+	export COLORTERM=truecolor
+fi
+
 # Edit command line.
 autoload -U edit-command-line
 zle -N edit-command-line
