@@ -5,9 +5,11 @@
 
 set -e
 
-if [ ! -d "$HOME/h" ]; then
-	mkdir "$HOME/h"
+local mountpoint="$HOME/h"
+
+if [ ! -d "$mountpoint" ]; then
+	mkdir "$mountpoint"
 fi
 
 sudo mount -t cifs -o username=$(whoami),uid=$(id -u),gid=$(id -g) \
-      //pilgrim.homestarmy.net/$(whoami) "$HOME/h"
+      //pilgrim.homestarmy.net/$(whoami) "$mountpoint"
