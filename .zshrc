@@ -29,9 +29,9 @@ WORDCHARS=${WORDCHARS//\/}
 
 # Color ls output.
 local platform=$(uname)
-if [[ $platform = Linux ]]; then
-    alias ls='ls --color=always'
-elif [[ $platform = Darwin ]] || [[ $platform = FreeBSD ]]; then
+if [[ $platform = Linux ]] || [[ $platform = Darwin ]]; then
+    alias ls='ls --color=auto'
+elif [[ $platform = FreeBSD ]]; then
     alias ls='ls -G'
 fi
 
