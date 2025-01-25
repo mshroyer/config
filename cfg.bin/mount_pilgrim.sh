@@ -17,9 +17,15 @@ function mount_linux() {
 }
 
 function mount_macos() {
+	local mountpoint="$HOME/h"
+
 	# Take advantage of Keychain password caching.
 	echo "mount volume \"smb://pilgrim.homestarmy.net/$(whoami)\"" \
 		| /usr/bin/osascript
+
+	if [ ! -e "$mountpoint" ]; then
+		ln -s "/Volumes/$(whoami)" "$mountpoint"
+	fi
 }
 
 if [ "$(uname)" = "Linux" ]; then
