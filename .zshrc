@@ -2,6 +2,9 @@ HISTFILE=~/.zsh_histfile
 HISTSIZE=10000
 SAVEHIST=10000
 
+if [ -d "$HOME/bin" ]; then
+	PATH="$PATH:$HOME/bin"
+fi
 export PATH="$PATH:$HOME/cfg.bin"
 
 setopt appendhistory sharehistory
