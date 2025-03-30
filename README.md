@@ -12,7 +12,6 @@ StreakyCobra](https://news.ycombinator.com/item?id=11071754).
 To setup the configuration repository on a new host:
 
     % alias config='git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
-    % echo ".cfg" >> .gitignore
     % git clone --bare git@github.com:mshroyer/config.git $HOME/.cfg
     % config checkout
 
