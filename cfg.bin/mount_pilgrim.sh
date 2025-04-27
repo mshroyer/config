@@ -33,6 +33,6 @@ if [ "$(uname)" = "Linux" ]; then
 elif [ "$(uname)" = "Darwin" ]; then
 	mount_macos
 else
-	echo "Unsupported on $(uname)" >&1
+	echo "Unsupported on $(uname)" >&2
 	exit 1
 fi
