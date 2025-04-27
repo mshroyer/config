@@ -86,8 +86,20 @@ back() {
 }
 
 if [[ -f $HOME/.zshrc.local ]]; then
-    . "$HOME/.zshrc.local"
+	. "$HOME/.zshrc.local"
 fi
+
+# Setup SSH authentication socket indirection for tmux.
+# if [[ -o interactive ]]; then
+# 	if [ -z "$TMUX" ]; then
+# 		echo "Creating tty link for $(tty) from zsh pid $$" >>$HOME/tsock.log
+# 		"$HOME/cfg.bin/tsock.sh" set-tty-link
+# 	fi
+
+# 	if [[ -f $HOME/.zshrc.local ]]; then
+# 		. "$HOME/.zshrc.local"
+# 	fi
+# fi
 
 #
 # Optional SDKs
