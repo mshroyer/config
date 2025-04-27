@@ -104,6 +104,8 @@ fi
 if [[ -o interactive ]] && [ -z "$WSLENV" ]; then
 	if [ -z "$TMUX" ]; then
 		"$HOME/cfg.bin/tsock.sh" set-tty-link
+	else
+		export SSH_AUTH_SOCK="$($HOME/cfg.bin/tsock.sh show-server-link)"
 	fi
 fi
 
