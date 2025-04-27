@@ -90,16 +90,16 @@ if [[ -f $HOME/.zshrc.local ]]; then
 fi
 
 # Setup SSH authentication socket indirection for tmux.
-# if [[ -o interactive ]]; then
-# 	if [ -z "$TMUX" ]; then
-# 		echo "Creating tty link for $(tty) from zsh pid $$" >>$HOME/tsock.log
-# 		"$HOME/cfg.bin/tsock.sh" set-tty-link
-# 	fi
-
-# 	if [[ -f $HOME/.zshrc.local ]]; then
-# 		. "$HOME/.zshrc.local"
-# 	fi
-# fi
+#
+# Currently, launching new zsh interactive shells on WSL2 AlmaLinux 9 appears
+# to create two interactive shells in quick succession, the first of which
+# doesn't have the TMUX environment set.  But we don't need this feature on
+# WSL anyway, so let's just skip it for now.
+if [[ -o interactive ]] && [ -z "$WSLENV" ]; then
+	if [ -z "$TMUX" ]; then
+		"$HOME/cfg.bin/tsock.sh" set-tty-link
+	fi
+fi
 
 #
 # Optional SDKs
