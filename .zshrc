@@ -109,6 +109,14 @@ if [[ -o interactive ]] && [ -z "$WSLENV" ]; then
 	fi
 fi
 
+# The client-active hook doesn't always give us the correct new client_tty
+# value, so we can also run the set-server-link hook as a shell preexec.  This
+# should be pretty efficient and doesn't noticeably affect shell
+# responsiveness.
+preexec() {
+	"$HOME/cfg.bin/tsock.sh" set-server-link
+}
+
 #
 # Optional SDKs
 #
