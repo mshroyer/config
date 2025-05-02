@@ -113,9 +113,10 @@ fi
 # value, so we can also run the set-server-link hook as a shell preexec.  This
 # should be pretty efficient and doesn't noticeably affect shell
 # responsiveness.
-preexec() {
+periodic() {
 	"$HOME/cfg.bin/tsock.sh" set-server-link
 }
+PERIOD=300
 
 #
 # Optional SDKs
