@@ -114,7 +114,7 @@ fi
 # should be pretty efficient and doesn't noticeably affect shell
 # responsiveness.
 periodic() {
-	"$HOME/cfg.bin/tsock.sh" set-server-link
+	"$HOME/cfg.bin/tsock.sh" set-server-link - periodic
 }
 PERIOD=300
 
