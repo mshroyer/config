@@ -5,7 +5,7 @@
 
 set -e
 
-function mount_linux() {
+mount_linux() {
 	local mountpoint="$HOME/h"
 
 	if [ ! -d "$mountpoint" ]; then
@@ -16,7 +16,7 @@ function mount_linux() {
 	     //pilgrim.homestarmy.net/$(whoami) "$mountpoint"
 }
 
-function mount_macos() {
+mount_macos() {
 	local mountpoint="$HOME/h"
 
 	# Take advantage of Keychain password caching.
