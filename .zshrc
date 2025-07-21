@@ -2,6 +2,10 @@ HISTFILE=~/.zsh_histfile
 HISTSIZE=10000
 SAVEHIST=10000
 
+# Uncomment to enable startup profiling.  Also needs zprof uncommented at the
+# bottom.
+#zmodload zsh/zprof
+
 if [ -d "$HOME/bin" ]; then
 	PATH="$PATH:$HOME/bin"
 fi
@@ -21,11 +25,12 @@ zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path ~/.zsh_cache
 autoload bashcompinit && bashcompinit
 autoload -Uz compinit
-# https://gist.github.com/ctechols/ca1035271ad134841284#gistcomment-2308206
-if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
-	compinit;
+# https://scottspence.com/posts/speeding-up-my-zsh-shell
+if [ "$(date +'%j')" != "$(stat -f '%Sm' -t '%j' ~/.zcompdump 2>/dev/null)" ]; then
+	compinit
+	touch ~/.zcompdump
 else
-	compinit -C;
+	compinit -C
 fi;
 
 # Left and right prompt style
@@ -134,3 +139,7 @@ function cloud {
     # The next line enables shell command completion for gcloud.
     if [ -f "$HOME/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/google-cloud-sdk/completion.zsh.inc"; fi
 }
+
+# Uncomment to enable startup profiling.  Also needs zmodload zsh/zprof
+# uncommented at the top.
+#zprof
