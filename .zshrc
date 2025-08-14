@@ -108,9 +108,9 @@ fi
 # WSL anyway, so let's just skip it for now.
 if [[ -o interactive ]] && [ -z "$WSLENV" ]; then
 	if [ -z "$TMUX" ]; then
-		"$HOME/cfg.bin/tsock.sh" set-tty-link
+		"$HOME/.tsock/tsock.sh" set-tty-link
 	else
-		export SSH_AUTH_SOCK="$($HOME/cfg.bin/tsock.sh show-server-link)"
+		export SSH_AUTH_SOCK="$($HOME/.tsock/tsock.sh show-server-link)"
 	fi
 fi
 
@@ -119,7 +119,7 @@ fi
 # should be pretty efficient and doesn't noticeably affect shell
 # responsiveness.
 periodic() {
-	"$HOME/cfg.bin/tsock.sh" set-server-link - periodic
+	"$HOME/.tsock/tsock.sh" set-server-link - periodic
 }
 PERIOD=300
 
