@@ -119,7 +119,9 @@ fi
 # should be pretty efficient and doesn't noticeably affect shell
 # responsiveness.
 periodic() {
-	"$HOME/.tsock/tsock.sh" set-server-link - periodic
+	if [ -n "$TMUX" ]; then
+		"$HOME/.tsock/tsock.sh" set-server-link - periodic
+	fi
 }
 PERIOD=300
 
