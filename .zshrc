@@ -35,8 +35,8 @@ fi;
 
 # Left and right prompt style
 setopt prompt_subst
-PROMPT=$'%(?..%{\e[38;5;196m%}[exit: %?]%{\e[0m%}\n)%{\e[38;5;178m%}[%m:%28<...<\${PWD/#\$HOME/~}%<<]%# %{\e[0m%}'
-#precmd () { RPROMPT=$'%(?..%{\e[38;5;196m%}[%?]%{\e[0m%})' }
+PROMPT=$'%{\e[38;5;178m%}[%m:%28<...<\${PWD/#\$HOME/~}%<<]%# %{\e[0m%}'
+precmd () { RPROMPT=$'%(?..%{\e[38;5;196m%}[%?]%{\e[0m%})' }
 
 # Use meta-backspace to delete individual path components, not entire path...
 WORDCHARS=${WORDCHARS//\/}
