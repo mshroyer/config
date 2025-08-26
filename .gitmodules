@@ -1,3 +1,0 @@
-[submodule ".tsock"]
-	path = .tsock
-	url = https://github.com/mshroyer/tsock.git

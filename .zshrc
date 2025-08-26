@@ -108,9 +108,9 @@ fi
 # WSL anyway, so let's just skip it for now.
 if [[ -o interactive ]] && [ -z "$WSLENV" ]; then
 	if [ -z "$TMUX" ]; then
-		"$HOME/.tsock/tsock.sh" set-tty-link
+		"$HOME/cfg.bin/socklink.sh" set-tty-link
 	else
-		export SSH_AUTH_SOCK="$($HOME/.tsock/tsock.sh show-server-link)"
+		export SSH_AUTH_SOCK="$($HOME/cfg.bin/socklink.sh show-server-link)"
 	fi
 fi
 
@@ -118,12 +118,12 @@ fi
 # value, so we can also run the set-server-link hook as a shell preexec.  This
 # should be pretty efficient and doesn't noticeably affect shell
 # responsiveness.
-periodic() {
-	if [ -n "$TMUX" ]; then
-		"$HOME/.tsock/tsock.sh" set-server-link - periodic
-	fi
-}
-PERIOD=300
+#periodic() {
+#	if [ -n "$TMUX" ]; then
+#		"$HOME/.tsock/tsock.sh" set-server-link - periodic
+#	fi
+#}
+#PERIOD=300
 
 #
 # Optional SDKs
