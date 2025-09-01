@@ -60,7 +60,8 @@ fi
 # https://chadaustin.me/2024/01/truecolor-terminal-emacs/
 if [[ $TERM = tmux-256color ]]; then
 	if [[ -x /usr/bin/toe ]] && \
-		   [[ ! -z $(/usr/bin/toe -a | grep tmux-direct) ]]; then
+		   [[ ! -z $(/usr/bin/toe -a | grep tmux-direct) ]] && \
+		   [[ "$(uname)" != "FreeBSD" ]]; then
 		export TERM=tmux-direct
 	fi
 	export COLORTERM=truecolor
