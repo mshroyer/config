@@ -35,19 +35,22 @@
 # macOS Sequoia 15.4.
 #
 # For the latest version see:
-# https://github.com/mshroyer/config/blob/master/cfg.bin/socklink.sh
-# or ~mshroyer/cfg.bin/socklink.sh on the sdf.org cluster or MetaArray
+# https://github.com/mshroyer/socklink/blob/main/socklink.sh
+#
+# Users of sdf.org can also find the latest release at ~mshroyer/socklink.sh
+# on either the regular cluster or MetaArray.
 
-VERSION=0.1.0
+VERSION="0.3.0-dev"
 
-set -e
-set -C  # noclobber for lock file
+set -eC  # noclobber for lock file
 
-if [ -f "$HOME/.socklink.conf" ]; then
-	. "$HOME/.socklink.conf"
+CONFFILE="$HOME/.socklink.conf"
+if [ -f "$CONFFILE" ]; then
+	# shellcheck disable=SC1090
+	. "$CONFFILE"
 fi
 
-# $UID is not portable
+# $UID is not totally portable
 MYUID="$(id -u)"
 if [ -z "$SOCKLINK_TMPDIR" ]; then
 	SOCKLINK_TMPDIR="/tmp"
@@ -84,8 +87,8 @@ log() {
 
 ### Auth socket management ###################################################
 
-# Converts absolute path to a device node into a string that can be used as a
-# filename: /dev/pts/98 -> dev+pts+98
+# Reversably maps an absolute path of a device node to a string that can be
+# used as a filename: /dev/pts/98 -> dev+pts+98
 get_device_filename() {
 	echo "$1" | grep -q '^/dev/' || {
 		echo "expected path starting with /dev/" >&2
@@ -95,7 +98,7 @@ get_device_filename() {
 		echo "device name $1 containing '+' or space is unsupported" >&2
 		exit 1
 	fi
-	echo $1 | cut -c2- | tr / +
+	echo "$1" | cut -c2- | tr / +
 }
 
 # Reverses get_device_filename
@@ -103,20 +106,36 @@ get_filename_device() {
 	echo "/$(echo "$1" | tr + /)"
 }
 
+# Gets the octal mode of a file
 UNAME=
-stat_mode() {
+get_uname() {
 	if [ -z "$UNAME" ]; then
 		UNAME="$(uname)"
 	fi
-	if [ "$UNAME" = "Linux" ]; then
-		stat -c '%a' "$1"
-	else
-		stat -f '%Lp' "$1"
-	fi
+	echo "$UNAME"
+}
+
+stat_mode() {
+	case "$(get_uname)" in
+		*BSD|Darwin)
+			stat -f '%Lp' "$1"
+			;;
+
+		*)
+			stat -c '%a' "$1"
+			;;
+	esac
 }
 
 get_pid_uid() {
-	ps -o uid -p "$1" | awk 'NR==2 { print $1; }'
+	if [ "$(get_uname)" = "Linux" ] && [ -e "/proc/$1/status" ]; then
+		# The ps invocation below also works for most Linux
+		# distributions, however Alpine Linux's busybox ps doesn't
+		# support -o uid.
+		awk '/^Uid:/ { print $2; }' "/proc/$1/status"
+	else
+		ps -o uid -p "$1" | awk 'NR==2 { print $1; }'
+	fi
 }
 
 ensure_dir() {
@@ -127,7 +146,8 @@ ensure_dir() {
 		log "expected $1 to be owned by UID $MYUID" 1
 		exit 1
 	fi
-	if [ "$(stat_mode "$1")" != 700 ]; then
+	mode="$(stat_mode "$1")"
+	if [ "$mode" != 700 ]; then
 		chmod 700 "$1"
 	fi
 }
@@ -142,11 +162,19 @@ set_symlink() {
 # Clean up any of the tty links that no longer both refer to an existing tty
 # owned by us, and point to a still-present authentication socket.
 gc_tty_links() {
-	for ttylink in $(ls "$TTYSDIR"); do
-		if [ ! -O "$(get_filename_device "$ttylink")" ] \
-			   || [ ! -O "$(readlink "$TTYSDIR/$ttylink")" ]; then
-			log "gc_tty_links: removing $TTYSDIR/$ttylink"
-			rm "$TTYSDIR/$ttylink"
+	for tty_link in "$TTYSDIR"/*; do
+		[ -L "$tty_link" ] || [ -e "$tty_link" ] || continue
+
+		tty_device="$(get_filename_device "$(basename "$tty_link")")"
+		if [ ! -O "$tty_device" ]; then
+			log "gc_tty_links: removing $tty_link: $tty_device missing or not owned"
+			rm -f "$tty_link"
+			continue
+		fi
+		tty_sock="$(readlink "$tty_link")"
+		if [ ! -O "$tty_sock" ]; then
+			log "gc_tty_links: removing $tty_link: $tty_sock missing or not owned"
+			rm -f "$tty_link"
 		fi
 	done
 }
@@ -168,7 +196,7 @@ set_tty_link() {
 	gc_server_links
 
 	if [ -n "$SSH_AUTH_SOCK" ] && [ -O "$SSH_AUTH_SOCK" ]; then
-		set_symlink "$SSH_AUTH_SOCK" "$(get_tty_link_path $(tty))"
+		set_symlink "$SSH_AUTH_SOCK" "$(get_tty_link_path "$(tty)")"
 	fi
 }
 
@@ -177,7 +205,7 @@ get_active_client_tty() {
 		socket=$(echo "$TMUX" | cut -d, -f1)
 		tty=$(tmux -S "$socket" display-message -p '#{client_tty}')
 		log "get_active_client_tty $socket: $tty"
-		echo $tty
+		echo "$tty"
 	fi
 }
 
@@ -202,8 +230,9 @@ take_lock() {
 			break
 		fi
 		sleep 0.1
-		n="$(expr "$n" - 1)"
-		if [ "$(get_pid_uid $(cat "$LOCKFILE"))" != "$MYUID" ]; then
+		n=$(("$n" - 1))
+		uid="$(get_pid_uid "$(cat "$LOCKFILE")")"
+		if [ "$uid" != "$MYUID" ]; then
 			log "removing stale lockfile $LOCKFILE" t
 			rm -f "$LOCKFILE"
 		fi
@@ -221,22 +250,23 @@ set_server_link() {
 	if [ -z "$serverlink" ]; then
 		return
 	fi
-	ttylink="$(get_tty_link_path "$1")"
+	tty_link="$(get_tty_link_path "$1")"
 
 	# This may be called frequently, as a ZSH hook or periodically, so
 	# let's optimize the happy path where the link is already set
 	# correctly.
-	if [ "$(readlink "$serverlink")" = "$ttylink" ]; then
+	target="$(readlink "$serverlink")" || target=
+	if [ "$target" = "$tty_link" ]; then
 		exit 0
 	fi
 
-	log "set_server_link: changing $serverlink -> $ttylink"
+	log "set_server_link: changing $serverlink -> $tty_link"
 
 	ensure_dir "$SOCKLINK_DIR"
 	ensure_dir "$SERVERSDIR"
 
 	take_lock
-	set_symlink "$ttylink" "$serverlink"
+	set_symlink "$tty_link" "$serverlink"
 }
 
 # Allow for setting the server link with a client identified by name instead
@@ -245,21 +275,22 @@ set_server_link() {
 # #{hook_client_tty}.
 get_named_client_tty() {
 	for client in $(tmux list-clients -F '#{client_name}:#{client_tty}'); do
-		cname=$(echo $client | cut -d: -f1)
-		ctty=$(echo $client | cut -d: -f2)
+		cname=$(echo "$client" | cut -d: -f1)
+		ctty=$(echo "$client" | cut -d: -f2)
 		if [ "$cname" = "$1" ]; then
-			echo $ctty
+			echo "$ctty"
 			return
 		fi
 	done
 }
 
 gc_server_links() {
-	for link in $(ls "$SERVERSDIR"); do
-		pid_uid="$(get_pid_uid "$link")"
+	for link in "$SERVERSDIR"/*; do
+		[ -e "$link" ] || continue
+		pid_uid="$(get_pid_uid "$(basename "$link")")"
 		if [ "$pid_uid" != "$MYUID" ]; then
-			log "gc_server_links: removing $SERVERSDIR/$link"
-			rm "$SERVERSDIR/$link"
+			log "gc_server_links: removing $link"
+			rm "$link"
 		fi
 	done
 }
@@ -286,12 +317,12 @@ ensure_trailing_newline() {
 # configuration--that is, outside of an explicitly marked configuration
 # section as created by this script.
 has_manual_config() {
-	rc_section=head
+	rc_section="head"
 	while IFS= read -r line; do
 		if [ "$line" = "$SOCKLINK_SECTION_BEGIN" ]; then
 			rc_section=installation
 		elif [ "$line" = "$SOCKLINK_SECTION_END" ]; then
-			rc_section=tail
+			rc_section="tail"
 		elif [ $rc_section != installation ]; then
 			if echo "$line" | grep -Eq 'socklink\.sh[[:space:]]+(set-tty-link|(set|show)-server-link)'; then
 				return
@@ -305,7 +336,7 @@ has_manual_config() {
 # using the text piped into this function.
 set_socklink_section() {
 	rc_tempdir=$(mktemp -d "$SOCKLINK_TMPDIR/socklink-rc-XXXXXXXX")
-	rc_section=head
+	rc_section="head"
 	rc_existing_content=
 
 	if [ ! -e "$1" ]; then
@@ -321,7 +352,7 @@ set_socklink_section() {
 		if [ "$line" = "$SOCKLINK_SECTION_BEGIN" ]; then
 			rc_section=installation
 		elif [ "$line" = "$SOCKLINK_SECTION_END" ]; then
-			rc_section=tail
+			rc_section="tail"
 		elif [ $rc_section != installation ]; then
 			rc_existing_content=1
 			echo "$line" >>"$rc_tempdir/$rc_section"
@@ -333,7 +364,7 @@ set_socklink_section() {
 		printf '\n' >>"$rc_tempdir/installation"
 	fi
 	echo "$SOCKLINK_SECTION_BEGIN" >>"$rc_tempdir/installation"
-	while IFS= read line; do
+	while IFS= read -r line; do
 		echo "$line" >>"$rc_tempdir/installation"
 	done
 	echo "$SOCKLINK_SECTION_END" >>"$rc_tempdir/installation"
@@ -348,7 +379,11 @@ set_socklink_section() {
 }
 
 get_script() {
-	script="$(realpath "$0")"
+	if which realpath >>/dev/null; then
+		script="$(realpath "$0")"
+	else
+		script="$0"
+	fi
 	if echo "$script" | grep -q "^$HOME/"; then
 		script="\$HOME${script#"$HOME"}"
 	fi
@@ -379,6 +414,24 @@ fi
 EOF
 }
 
+setup_zshrc() {
+	set_socklink_section "$HOME/.zshrc" <<EOF
+if [[ -o interactive ]]; then
+	if [ -z "\$TMUX" ]; then
+		$script set-tty-link
+	else
+		export SSH_AUTH_SOCK="\$($script show-server-link)"
+	fi
+fi
+EOF
+}
+
+setup() {
+	setup_tmux_conf
+	setup_bashrc
+	setup_zshrc
+}
+
 #### Feature checks ##########################################################
 
 check_number_at_least() {
@@ -394,9 +447,9 @@ has_client_active_hook() {
 	number="$(echo "$verstr" | sed -E 's/^tmux ((.*)-)?([0-9]+\.[0-9]+)(.*)/\3/')"
 
 	if [ "$prefix" = "openbsd" ]; then
-		check_number_at_least 7.1 $number
+		check_number_at_least 7.1 "$number"
 	else
-		check_number_at_least 3.3 $number
+		check_number_at_least 3.3 "$number"
 	fi
 }
 
@@ -432,8 +485,7 @@ elif [ "$1" = "show-server-link" ]; then
 elif [ "$1" = "has-client-active-hook" ]; then
 	has_client_active_hook "$2"
 elif [ "$1" = "setup" ]; then
-	setup_tmux_conf
-	setup_bashrc
+	setup
 elif [ -n "$SOCKLINK_TESTONLY_COMMANDS" ]; then
 	if [ "$1" = "get-device-filename" ]; then
 		get_device_filename "$2"
@@ -443,6 +495,10 @@ elif [ -n "$SOCKLINK_TESTONLY_COMMANDS" ]; then
 		set_socklink_section "$2"
 	elif [ "$1" = "has-manual-config" ]; then
 		has_manual_config "$2"
+	elif [ "$1" = "stat-mode" ]; then
+		stat_mode "$2"
+	elif [ "$1" = "get-pid-uid" ]; then
+		get_pid_uid "$2"
 	else
 		show_usage
 		exit 1
