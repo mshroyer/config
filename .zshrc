@@ -101,31 +101,6 @@ if [[ -f $HOME/.zshrc.local ]]; then
 	. "$HOME/.zshrc.local"
 fi
 
-# Setup SSH authentication socket indirection for tmux.
-#
-# Currently, launching new zsh interactive shells on WSL2 AlmaLinux 9 appears
-# to create two interactive shells in quick succession, the first of which
-# doesn't have the TMUX environment set.  But we don't need this feature on
-# WSL anyway, so let's just skip it for now.
-if [[ -o interactive ]] && [ -z "$WSLENV" ]; then
-	if [ -z "$TMUX" ]; then
-		"$HOME/cfg.bin/socklink.sh" set-tty-link
-	else
-		export SSH_AUTH_SOCK="$($HOME/cfg.bin/socklink.sh show-server-link)"
-	fi
-fi
-
-# The client-active hook doesn't always give us the correct new client_tty
-# value, so we can also run the set-server-link hook as a shell preexec.  This
-# should be pretty efficient and doesn't noticeably affect shell
-# responsiveness.
-#periodic() {
-#	if [ -n "$TMUX" ]; then
-#		"$HOME/.tsock/tsock.sh" set-server-link - periodic
-#	fi
-#}
-#PERIOD=300
-
 #
 # Optional SDKs
 #
@@ -146,3 +121,13 @@ function cloud {
 # Uncomment to enable startup profiling.  Also needs zmodload zsh/zprof
 # uncommented at the top.
 #zprof
+
+### SOCKLINK INSTALLATION BEGIN
+if [[ -o interactive ]]; then
+	if [ -z "$TMUX" ]; then
+		$HOME/cfg.bin/socklink.sh set-tty-link
+	else
+		export SSH_AUTH_SOCK="$($HOME/cfg.bin/socklink.sh show-server-link)"
+	fi
+fi
+### SOCKLINK INSTALLATION END
