@@ -70,7 +70,9 @@ Usage:
     socklink.sh set-tty-link
     socklink.sh set-server-link [client_tty]
     socklink.sh set-server-link-by-name client_name
+    socklink.sh set-tmux-env
     socklink.sh show-server-link
+    socklink.sh setup
     socklink.sh version
     socklink.sh help
 EOF
@@ -106,17 +108,8 @@ get_filename_device() {
 	echo "/$(echo "$1" | tr + /)"
 }
 
-# Gets the octal mode of a file
-UNAME=
-get_uname() {
-	if [ -z "$UNAME" ]; then
-		UNAME="$(uname)"
-	fi
-	echo "$UNAME"
-}
-
 stat_mode() {
-	case "$(get_uname)" in
+	case "$(uname)" in
 		*BSD|Darwin)
 			stat -f '%Lp' "$1"
 			;;
@@ -128,11 +121,11 @@ stat_mode() {
 }
 
 get_pid_uid() {
-	if [ "$(get_uname)" = "Linux" ] && [ -e "/proc/$1/status" ]; then
+	if [ "$(uname)" = "Linux" ] && [ -e "/proc/$$/status" ]; then
 		# The ps invocation below also works for most Linux
 		# distributions, however Alpine Linux's busybox ps doesn't
 		# support -o uid.
-		awk '/^Uid:/ { print $2; }' "/proc/$1/status"
+		awk '/^Uid:/ { print $2; }' "/proc/$1/status" || echo ""
 	else
 		ps -o uid -p "$1" | awk 'NR==2 { print $1; }'
 	fi
@@ -210,7 +203,7 @@ get_active_client_tty() {
 }
 
 get_server_link_path() {
-	pid=$(echo "$TMUX" | cut -d, -f2)
+	pid="$(echo "$TMUX" | cut -d, -f2)"
 	if [ -n "$pid" ]; then
 		echo "$SERVERSDIR/$pid"
 	fi
@@ -269,6 +262,15 @@ set_server_link() {
 	set_symlink "$tty_link" "$serverlink"
 }
 
+set_tmux_env() {
+	if [ -z "$TMUX" ]; then
+		log "set_tmux_env: \$TMUX not set, aborting" t
+		exit 1
+	fi
+	server_link="$(get_server_link_path)"
+	tmux set-environment -g SSH_AUTH_SOCK "$server_link"
+}
+
 # Allow for setting the server link with a client identified by name instead
 # of by tty.  This is useful because tmux currently has a #{hook_client}
 # format variable that resolves to the triggering client name, but no
@@ -286,11 +288,12 @@ get_named_client_tty() {
 
 gc_server_links() {
 	for link in "$SERVERSDIR"/*; do
-		[ -e "$link" ] || continue
+		[ -L "$link" ] || [ -e "$link" ] || continue
+
 		pid_uid="$(get_pid_uid "$(basename "$link")")"
 		if [ "$pid_uid" != "$MYUID" ]; then
 			log "gc_server_links: removing $link"
-			rm "$link"
+			rm -f "$link"
 		fi
 	done
 }
@@ -399,6 +402,7 @@ if-shell -b '$script has-client-active-hook' {
 }
 set-hook -ga client-attached 'run-shell "$script set-server-link #{client_tty} client-attached"'
 set-hook -ga session-created 'run-shell "$script set-server-link #{client_tty} session-created"'
+set-hook -ga session-created 'run-shell "$script set-tmux-env"'
 EOF
 }
 
@@ -482,6 +486,8 @@ elif [ "$1" = "set-server-link-by-name" ]; then
 	fi
 elif [ "$1" = "show-server-link" ]; then
 	get_server_link_path
+elif [ "$1" = "set-tmux-env" ]; then
+	set_tmux_env
 elif [ "$1" = "has-client-active-hook" ]; then
 	has_client_active_hook "$2"
 elif [ "$1" = "setup" ]; then
