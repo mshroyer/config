@@ -120,12 +120,20 @@ stat_mode() {
 	esac
 }
 
+BUSYBOX_PS=
 get_pid_uid() {
-	if [ "$(uname)" = "Linux" ] && [ -e "/proc/$$/status" ]; then
+	if [ -z "$BUSYBOX_PS" ] && [ "$(uname)" = "Linux" ]; then
+		ps="$(which ps)"
+		if [ -L "$ps" ] && [ "$(basename "$(readlink "$ps")")" = "busybox" ]; then
+			BUSYBOX_PS=1
+		fi
+	fi
+
+	if [ -n "$BUSYBOX_PS" ]; then
 		# The ps invocation below also works for most Linux
-		# distributions, however Alpine Linux's busybox ps doesn't
-		# support -o uid.
-		awk '/^Uid:/ { print $2; }' "/proc/$1/status" || echo ""
+		# distributions, however Alpine Linux's busybox ps
+		# implementation doesn't support -o uid.
+		awk '/^Uid:/ { print $2; }' "/proc/$1/status" 2>>/dev/null || echo ""
 	else
 		ps -o uid -p "$1" | awk 'NR==2 { print $1; }'
 	fi
@@ -176,6 +184,8 @@ get_tty_link_path() {
 	echo "$TTYSDIR/$(get_device_filename "$1")"
 }
 
+# Sets a link to a non-tmux shell's original $SSH_AUTH_SOCK keyed by the name
+# of its tty.
 set_tty_link() {
 	ensure_dir "$SOCKLINK_DIR"
 	ensure_dir "$TTYSDIR"
@@ -238,12 +248,24 @@ take_lock() {
 	trap release_lock INT TERM EXIT
 }
 
+# Links the server's PID to the tty name of its currently active client.
+#
+# If the optional client_tty parameter is not given, looks up the currently
+# actively client by tmux's own reckoning.
 set_server_link() {
+	log "set_server_link: cause = '$cause_flag', client_tty = '$client_tty'"
+
+	client_tty="$1"
+	if [ -z "$client_tty" ] || [ "$client_tty" = "-" ]; then
+		client_tty="$(get_active_client_tty)"
+	fi
+
 	serverlink="$(get_server_link_path)"
 	if [ -z "$serverlink" ]; then
-		return
+		log "set_server_link: server link is unset" t
+		exit 1
 	fi
-	tty_link="$(get_tty_link_path "$1")"
+	tty_link="$(get_tty_link_path "$client_tty")"
 
 	# This may be called frequently, as a ZSH hook or periodically, so
 	# let's optimize the happy path where the link is already set
@@ -262,6 +284,32 @@ set_server_link() {
 	set_symlink "$tty_link" "$serverlink"
 }
 
+# Links the server's PID to the tty based on the tmux client name instead of
+# the tty device path.  This allows us to use the client-active hook's
+# #{hook_client} variable instead of #{client_tty}, the latter of which can
+# race with the hook's execution.
+#
+# In practice the client name seems to be equal to the tty device in all
+# scenarios I've been able to reproduce, so this lookup may not be strictly
+# necessary.
+set_server_link_by_name() {
+	client_name="$1"
+	if [ -z "$client_name" ]; then
+		log "set_server_link_by_name: client_name not given" t
+		exit 1
+	fi
+
+	client_tty="$(get_named_client_tty "$client_name")"
+	if [ -n "$client_tty" ]; then
+		set_server_link "$client_tty"
+	fi
+}
+
+# Sets SSH_AUTH_SOCK in the server's global tmux environment.
+#
+# This may be useful for user tmux hooks that do things with SSH.  It isn't
+# sufficient to skip also setting SSH_AUTH_SOCK within in-tmux shells' init,
+# however.
 set_tmux_env() {
 	if [ -z "$TMUX" ]; then
 		log "set_tmux_env: \$TMUX not set, aborting" t
@@ -397,12 +445,12 @@ setup_tmux_conf() {
 	script="$(get_script)"
 
 	set_socklink_section "$HOME/.tmux.conf" <<EOF
-if-shell -b '$script has-client-active-hook' {
-	set-hook -ga client-active 'run-shell "$script set-server-link-by-name #{hook_client} client-active"'
+if-shell -b '$script test-tmux-feature client-active-hook' {
+	set-hook -ga client-active 'run-shell "$script -c client-active set-server-link-by-name #{hook_client}"'
 }
-set-hook -ga client-attached 'run-shell "$script set-server-link #{client_tty} client-attached"'
-set-hook -ga session-created 'run-shell "$script set-server-link #{client_tty} session-created"'
-set-hook -ga session-created 'run-shell "$script set-tmux-env"'
+set-hook -ga client-attached 'run-shell "$script -c client-attached set-server-link #{client_tty}"'
+set-hook -ga session-created 'run-shell "$script -c session-created set-server-link #{client_tty}"'
+set-hook -ga session-created 'run-shell "$script -c session-created set-tmux-env"'
 EOF
 }
 
@@ -410,7 +458,7 @@ setup_bashrc() {
 	set_socklink_section "$HOME/.bashrc" <<EOF
 if [[ \$- == *i* ]]; then
 	if [ -z "\$TMUX" ]; then
-		$script set-tty-link
+		$script set-tty-link -c shell-init
 	else
 		export SSH_AUTH_SOCK="\$($script show-server-link)"
 	fi
@@ -422,7 +470,7 @@ setup_zshrc() {
 	set_socklink_section "$HOME/.zshrc" <<EOF
 if [[ -o interactive ]]; then
 	if [ -z "\$TMUX" ]; then
-		$script set-tty-link
+		$script set-tty-link -c shell-init
 	else
 		export SSH_AUTH_SOCK="\$($script show-server-link)"
 	fi
@@ -442,55 +490,85 @@ check_number_at_least() {
 	awk -v n="$2" -v c="$1" 'BEGIN{ exit !(c+0 <= n+0) }'
 }
 
-has_client_active_hook() {
-	verstr="$1"
+# Tests whether a named tmux feature is available in our environment.
+#
+# An optional version argument gives the tmux version string to consider.  If
+# unspecified, the version of the tmux on our $PATH is queried.
+test_tmux_feature() {
+	feature="$1"
+	verstr="$2"
 	if [ -z "$verstr" ]; then
 		verstr="$(tmux -V)"
 	fi
+
 	prefix="$(echo "$verstr" | sed -E 's/^tmux ((.*)-)?([0-9]+\.[0-9]+)(.*)/\2/')"
 	number="$(echo "$verstr" | sed -E 's/^tmux ((.*)-)?([0-9]+\.[0-9]+)(.*)/\3/')"
 
-	if [ "$prefix" = "openbsd" ]; then
-		check_number_at_least 7.1 "$number"
-	else
-		check_number_at_least 3.3 "$number"
-	fi
+	case "$feature" in
+		client-active-hook)
+			if [ "$prefix" = "openbsd" ]; then
+				check_number_at_least 7.1 "$number"
+			else
+				check_number_at_least 3.3 "$number"
+			fi
+			;;
+		*)
+			log "test_tmux_feature: Unknown feature '$feature'" t
+			exit 1
+			;;
+	esac
 }
 
 #### Main ####################################################################
 
-if [ "$1" = "-h" ] || [ "$1" = "help" ]; then
+cause_flag=
+help_flag=
+version_flag=
+while getopts c:hV flag
+do
+	case "$flag" in
+		c)
+			cause_flag="$OPTARG"
+			;;
+		h)
+			help_flag=1
+			;;
+		V)
+			version_flag=1
+			;;
+		*)
+			log "Unknown flag: $flag" t
+			exit 1
+			;;
+	esac
+done
+shift $((OPTIND - 1))
+
+if [ -n "$help_flag" ] || [ "$1" = "help" ]; then
 	show_usage
-elif [ "$1" = "version" ]; then
+elif [ -n "$version_flag" ]; then
 	echo "$VERSION"
 elif [ "$1" = "set-tty-link" ]; then
-	log "$1 $2"
+	log "$@"
 	set_tty_link
 elif [ "$1" = "set-server-link" ]; then
-	log "$1 $2 $3"
+	log "$@"
 	shift
-	if [ -z "$1" ] || [ "$1" = "-" ]; then
-		client_tty="$(get_active_client_tty)"
-		if [ -n "$client_tty" ]; then
-			set_server_link "$client_tty"
-		fi
-	else
-		set_server_link "$1"
-	fi
+	set_server_link "$@"
 elif [ "$1" = "set-server-link-by-name" ]; then
-	log "$1 $2"
+	log "$@"
 	shift
-	ctty="$(get_named_client_tty "$1")"
-	if [ -n "$ctty" ]; then
-		set_server_link "$ctty"
-	fi
+	set_server_link_by_name "$@"
 elif [ "$1" = "show-server-link" ]; then
 	get_server_link_path
 elif [ "$1" = "set-tmux-env" ]; then
 	set_tmux_env
-elif [ "$1" = "has-client-active-hook" ]; then
-	has_client_active_hook "$2"
+elif [ "$1" = "test-tmux-feature" ]; then
+	log "$@"
+	shift
+	test_tmux_feature "$@"
 elif [ "$1" = "setup" ]; then
+	log "$@"
 	setup
 elif [ -n "$SOCKLINK_TESTONLY_COMMANDS" ]; then
 	if [ "$1" = "get-device-filename" ]; then
