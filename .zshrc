@@ -125,7 +125,7 @@ function cloud {
 ### SOCKLINK INSTALLATION BEGIN
 if [[ -o interactive ]]; then
 	if [ -z "$TMUX" ]; then
-		$HOME/cfg.bin/socklink.sh set-tty-link
+		$HOME/cfg.bin/socklink.sh set-tty-link -c shell-init
 	else
 		export SSH_AUTH_SOCK="$($HOME/cfg.bin/socklink.sh show-server-link)"
 	fi
