@@ -90,6 +90,8 @@ alias ecn="emacsclient -n"
 alias sshn="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 alias scpn="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
+alias sls='sl && sl status'
+
 alias config="$(which git) --git-dir=$HOME/.cfg/ --work-tree=$HOME"
 
 # Helper for running something as a background nohup job.
