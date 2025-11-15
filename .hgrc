@@ -13,8 +13,8 @@ vimdiff.premerge = keep
 
 [extensions]
 strip =
-evolve = ~/.hgext/evolve/hgext3rd/evolve
-topic = ~/.hgext/evolve/hgext3rd/topic
+evolve =
+topic =
 
 [alias]
 # Rebase all topics onto the given destination.
