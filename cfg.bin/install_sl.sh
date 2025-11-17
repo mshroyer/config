@@ -38,4 +38,4 @@ cleanup_tempdir() {
 trap cleanup_tempdir INT TERM EXIT
 
 gh run download "$run_id" --repo "$REPO" --dir "$tempdir"
-find "$tempdir" -type f | xargs sudo dnf install -y
+find "$tempdir" -type f -name '*.rpm' | xargs sudo dnf install -y
