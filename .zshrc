@@ -96,7 +96,7 @@ alias config="$(which git) --git-dir=$HOME/.cfg/ --work-tree=$HOME"
 
 # Find the root directory of whatever source code repository the current
 # directory is in, if any.
-repo_root() {
+_repo_root() {
 	(
 		while [ "$PWD" != "/" ]; do
 			if [ -d "$PWD/.git" ] || [ -d "$PWD/.sl" ]; then
@@ -108,7 +108,7 @@ repo_root() {
 	)
 }
 
-gh_repo_from_url() {
+_gh_repo_from_url() {
 	url="$1"
 	path="${url#https://github.com/}"
 	path="${path#git@github.com:}"
@@ -124,7 +124,7 @@ gh_repo_from_url() {
 
 # Get the GitHub repo name, if any, of a Sapling or git clone.
 gh_repo_name() {
-	repo="$(repo_root)"
+	repo="$(_repo_root)"
 	if [ -z "$repo" ]; then
 		return
 	fi
@@ -132,12 +132,12 @@ gh_repo_name() {
 	if [ -d "${repo}/.sl" ]; then
 		default_path=
 		default_path="$(cd "$repo" && sl config paths.default)" || {}
-		repo="$(gh_repo_from_url "$default_path")"
+		repo="$(_gh_repo_from_url "$default_path")"
 		echo "$repo"
 	elif [ -d "${repo}/.git" ]; then
 		origin=
 		origin="$(cd "$repo" && git remote -v | awk '{ if ( $1 == "origin" ) { print $2; exit; } }')" || {}
-		repo="$(gh_repo_from_url "$origin")"
+		repo="$(_gh_repo_from_url "$origin")"
 		echo "$repo"
 	fi
 }
