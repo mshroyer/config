@@ -4,6 +4,17 @@
 
 set -e
 
+if [ "$(uname -s)" != "Linux" ]; then
+	echo "Not supported on non-Linux operating systems" >&2
+	exit 1
+fi
+
+. /etc/os-release
+if [ "$PLATFORM_ID" != "platform:el10" ]; then
+	echo "Only supported on el10" >&2
+	exit 1
+fi
+
 REPO="mshroyer/sapling-builds"
 
 run_id="$(gh api "repos/${REPO}/actions/runs" \
