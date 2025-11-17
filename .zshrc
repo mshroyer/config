@@ -94,6 +94,67 @@ alias sls='sl && sl status'
 
 alias config="$(which git) --git-dir=$HOME/.cfg/ --work-tree=$HOME"
 
+# Find the root directory of whatever source code repository the current
+# directory is in, if any.
+repo_root() {
+	(
+		while [ "$PWD" != "/" ]; do
+			if [ -d "$PWD/.git" ] || [ -d "$PWD/.sl" ]; then
+				echo "$PWD"
+				break
+			fi
+			cd ..
+		done
+	)
+}
+
+gh_repo_from_url() {
+	url="$1"
+	path="${url#https://github.com/}"
+	path="${path#git@github.com:}"
+
+	if [ "$path" = "$url" ]; then
+		# Didn't have a github prefix
+		return
+	fi
+	path="${path%.git/}"
+	path="${path%.git}"
+	echo "$path"
+}
+
+# Get the GitHub repo name, if any, of a Sapling or git clone.
+gh_repo_name() {
+	repo="$(repo_root)"
+	if [ -z "$repo" ]; then
+		return
+	fi
+
+	if [ -d "${repo}/.sl" ]; then
+		default_path=
+		default_path="$(cd "$repo" && sl config paths.default)" || {}
+		repo="$(gh_repo_from_url "$default_path")"
+		echo "$repo"
+	elif [ -d "${repo}/.git" ]; then
+		origin=
+		origin="$(cd "$repo" && git remote -v | awk '{ if ( $1 == "origin" ) { print $2; exit; } }')" || {}
+		repo="$(gh_repo_from_url "$origin")"
+		echo "$repo"
+	fi
+}
+
+# Pass explicit repo name to the gh cli
+#
+# This way I can run `gh run watch` and so on in repos I've cloned in .sl mode
+# with sapling, where gh won't automatically detect the repo name.
+gh() {
+	repo="$(gh_repo_name)"
+	if [ -n "$repo" ]; then
+		command gh -R "$repo" $@
+	else
+		command gh $@
+	fi
+}
+
 # Helper for running something as a background nohup job.
 back() {
     nohup "$1" >/dev/null &
