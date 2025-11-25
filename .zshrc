@@ -92,6 +92,8 @@ alias scpn="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
 alias sls='sl && sl status'
 
+alias edit='msedit'
+
 alias config="$(which git) --git-dir=$HOME/.cfg/ --work-tree=$HOME"
 
 # Find the root directory of whatever source code repository the current
