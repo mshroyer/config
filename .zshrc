@@ -44,9 +44,14 @@ WORDCHARS=${WORDCHARS//\/}
 # Color ls output.
 local platform=$(uname)
 if [[ $platform = Linux ]] || [[ $platform = Darwin ]]; then
-    alias ls='ls --color=auto'
+	alias ls='ls --color=auto'
 elif [[ $platform = FreeBSD ]]; then
-    alias ls='ls -G'
+	alias ls='ls -G'
+elif [[ $platform = OpenBSD ]] || [[ $platform = NetBSD ]]; then
+	# OpenBSD and NetBSD rely on a non-base package for color ls output.
+	if type colorls; then
+		alias ls='colorls -G'
+	fi
 fi
 
 # My tmux configuration sets the default terminal to tmux-256color, which I
