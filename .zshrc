@@ -49,7 +49,7 @@ elif [[ $platform = FreeBSD ]]; then
 	alias ls='ls -G'
 elif [[ $platform = OpenBSD ]] || [[ $platform = NetBSD ]]; then
 	# OpenBSD and NetBSD rely on a non-base package for color ls output.
-	if type colorls; then
+	if type colorls >/dev/null; then
 		alias ls='colorls -G'
 	fi
 fi
