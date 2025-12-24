@@ -10,4 +10,4 @@ color status black cyan;
 color header yellow black '.*';
 color indicator black yellow;
 color signature magenta black;
-color tree yellow black;
+color tree green black;
