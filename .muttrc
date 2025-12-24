@@ -1,7 +1,5 @@
 set realname='Mark Shroyer';
 
-source ~/cfg.bin/muttrc_local.sh|
-
 macro index,pager i "<change-folder>$spoolfile<enter>" 'Go to inbox'
 
 set sort=threads;
@@ -15,3 +13,5 @@ color header yellow black '.*';
 color indicator black yellow;
 color signature magenta black;
 color tree green black;
+
+source ~/cfg.bin/muttrc_local.sh|
