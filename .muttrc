@@ -2,6 +2,8 @@ set realname='Mark Shroyer';
 
 source ~/cfg.bin/muttrc_local.sh|
 
+macro index,pager i "<change-folder>$spoolfile<enter>" 'Go to inbox'
+
 set sort=threads;
 set sort_thread_groups=reverse-last-date-received;
 set strict_threads=yes;
