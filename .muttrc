@@ -1,0 +1,8 @@
+set realname='Mark Shroyer';
+
+set sort='reverse-date';
+
+color status black cyan;
+color header yellow black '.*';
+color indicator black yellow;
+color signature blue black;
