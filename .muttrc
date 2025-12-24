@@ -1,5 +1,7 @@
 set realname='Mark Shroyer';
 
+source ~/cfg.bin/muttrc_local.sh|
+
 set sort=threads;
 set sort_thread_groups=reverse-last-date-received;
 set strict_threads=yes;
