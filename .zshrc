@@ -154,12 +154,23 @@ gh_repo_name() {
 # This way I can run `gh run watch` and so on in repos I've cloned in .sl mode
 # with sapling, where gh won't automatically detect the repo name.
 gh() {
-	repo="$(gh_repo_name)"
-	if [ -n "$repo" ]; then
-		command gh -R "$repo" $@
-	else
-		command gh $@
-	fi
+	case "$1" in
+		pr|run|workflow)
+			local subcommand="$1"
+			shift
+
+			local repo="$(gh_repo_name)"
+			if [ -n "$repo" ]; then
+				command gh "$subcommand" -R "$repo" $@
+			else
+				command gh "$subcommand" $@
+			fi
+		;;
+
+		*)
+			command gh $@
+		;;
+	esac
 }
 
 # Helper for running something as a background nohup job.
