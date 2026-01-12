@@ -18,13 +18,12 @@ fi
 REPO="mshroyer/sapling-builds"
 
 run_id="$(gh api "repos/${REPO}/actions/runs" \
-	     --paginate -q \
-	     '[ .workflow_runs
-			     | sort_by(.created_at)
-			     | reverse
-			     | .[]
+	     --paginate --slurp \
+	     | jq '[ .[].workflow_runs[]
 			     | select(.name=="sapling")
 			     | select(.conclusion=="success") ]
+			     | sort_by(.created_at)
+			     | reverse
 			     | .[0]
 			     | .id')"
 
