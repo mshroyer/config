@@ -109,6 +109,21 @@ back() {
     nohup "$1" >/dev/null &
 }
 
+# Allow EDITOR to be overridden in the profile or .zshenv, but otherwise set
+# some good defaults:
+if [ -z "$EDITOR" ]; then
+	if type mg >/dev/null; then
+		export EDITOR="$(which mg)"
+	else
+		export EDITOR="$(which vi)"
+	fi
+
+	if type emacsclient >/dev/null; then
+		export ALTERNATE_EDITOR="$EDITOR"
+		export EDITOR="$(which emacsclient) -nw -c"
+	fi
+fi
+
 if [[ -f $HOME/.zshrc.local ]]; then
 	. "$HOME/.zshrc.local"
 fi
