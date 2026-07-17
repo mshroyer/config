@@ -96,6 +96,8 @@ alias sshn="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 alias scpn="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
 alias sls='sl && sl status'
+alias jjs='jj && jj diff --stat'
+alias jjt='jj --stat'
 
 alias edit='msedit'
 
