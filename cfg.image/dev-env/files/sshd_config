@@ -1,0 +1,6 @@
+Include /etc/ssh/sshd_config.d/*.conf
+PermitRootLogin no
+AuthorizedKeysFile .ssh/authorized_keys
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+Subsystem sftp /usr/libexec/openssh/sftp-server
