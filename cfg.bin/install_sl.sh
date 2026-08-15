@@ -18,14 +18,14 @@ fi
 REPO="mshroyer/sapling-builds"
 
 run_id="$(gh api "repos/${REPO}/actions/runs" \
-	     --paginate --slurp \
-	     | jq '[ .[].workflow_runs[]
-			     | select(.name=="sapling")
-			     | select(.conclusion=="success") ]
-			     | sort_by(.created_at)
-			     | reverse
-			     | .[0]
-			     | .id')"
+            --paginate --slurp \
+            | jq '[ .[].workflow_runs[]
+                            | select(.name=="sapling")
+                            | select(.conclusion=="success") ]
+                            | sort_by(.created_at)
+                            | reverse
+                            | .[0]
+                            | .id')"
 
 echo "Fetching artifacts from sapling run ${run_id}"
 echo "https://github.com/${REPO}/actions/runs/${run_id}/"
@@ -37,4 +37,4 @@ cleanup_tempdir() {
 trap cleanup_tempdir INT TERM EXIT
 
 gh run download "$run_id" --repo "$REPO" --dir "$tempdir"
-find "$tempdir" -type f -name '*.rpm' | xargs sudo dnf install -y
+find "$tempdir" -type f -name "*.$(uname -m).rpm" | xargs sudo dnf install -y
