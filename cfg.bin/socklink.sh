@@ -2,8 +2,8 @@
 
 # A cross-platform SSH_AUTH_SOCK manager for tmux
 #
-# This script helps maintain a two-level symlink map of a user's tmux server
-# PIDs to the SSH_AUTH_SOCKs that they opened their active clients with.  The
+# This script maintains a two-level symlink map of a user's tmux server PIDs
+# to the SSH_AUTH_SOCKs that they started their active clients with.  The
 # first level maps the server PID to a filename representing a client tty; the
 # second level maps that tty filename to the original auth socket.  The second
 # level may be missing if, for example, the client logged in without SSH agent
@@ -39,13 +39,11 @@
 # For the latest release or more info see:
 # https://github.com/mshroyer/socklink/
 #
-# Users of sdf.org can also find the latest release at ~mshroyer/socklink.sh,
-# on either the regular cluster or MetaArray.  (But I'd strongly recommend
-# copying it to your own home directory instead of running it directly from
-# there, in case a future version breaks something for you.)
+# Users of sdf.org can also find the latest release in /sys/sdf/bin on the
+# cluster, or at ~mshroyer/socklink.sh on MetaArray.
 #
 #
-# Copyright (c) 2025 Mark Shroyer
+# Copyright (c) 2025-26 Mark Shroyer
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -66,9 +64,9 @@
 # SOFTWARE.
 
 
-VERSION="0.3.1-dev"
+VERSION="0.3.2"
 
-set -eC  # noclobber for lock file
+set -euC  # noclobber for lock file
 
 CONFFILE="$HOME/.socklink.conf"
 if [ -f "$CONFFILE" ]; then
@@ -78,10 +76,10 @@ fi
 
 # $UID is not totally portable
 MYUID="$(id -u)"
-if [ -z "$SOCKLINK_TMPDIR" ]; then
+if [ -z "${SOCKLINK_TMPDIR:-}" ]; then
 	SOCKLINK_TMPDIR="/tmp"
 fi
-if [ -z "$SOCKLINK_DIR" ]; then
+if [ -z "${SOCKLINK_DIR:-}" ]; then
 	SOCKLINK_DIR="$SOCKLINK_TMPDIR/socklink-$MYUID"
 fi
 SERVERSDIR="$SOCKLINK_DIR/servers"
@@ -108,7 +106,7 @@ log() {
 	if [ -n "$SOCKLINK_LOG" ]; then
 		echo "$(date +'%Y-%m-%d %H:%M:%S') $1" >>"$SOCKLINK_LOG"
 	fi
-	if [ -n "$2" ]; then
+	if [ -n "${2:-}" ]; then
 		echo "$1" >&2
 	fi
 }
@@ -148,14 +146,21 @@ stat_mode() {
 
 BUSYBOX_PS=
 get_pid_uid() {
-	if [ -z "$BUSYBOX_PS" ] && [ "$(uname)" = "Linux" ]; then
+	# We could get an empty PID string if we attempt to read the lock file
+	# while racing with another process.
+	if [ -z "$1" ]; then
+		echo "-1"
+		return
+	fi
+
+	if [ -z "${BUSYBOX_PS:-}" ] && [ "$(uname)" = "Linux" ]; then
 		ps="$(which ps)"
 		if [ -L "$ps" ] && [ "$(basename "$(readlink "$ps")")" = "busybox" ]; then
 			BUSYBOX_PS=1
 		fi
 	fi
 
-	if [ -n "$BUSYBOX_PS" ]; then
+	if [ -n "${BUSYBOX_PS:-}" ]; then
 		# The ps invocation below also works for most Linux
 		# distributions, however Alpine Linux's busybox ps
 		# implementation doesn't support -o uid.
@@ -169,7 +174,7 @@ ensure_dir() {
 	if [ ! -d "$1" ]; then
 		mkdir -m700 "$1"
 	fi
-	if [ ! -O "$1" ]; then
+	if [ -z "$(find "$1" -prune -user "$MYUID")" ]; then
 		log "expected $1 to be owned by UID $MYUID" 1
 		exit 1
 	fi
@@ -193,13 +198,13 @@ gc_tty_links() {
 		[ -L "$tty_link" ] || [ -e "$tty_link" ] || continue
 
 		tty_device="$(get_filename_device "$(basename "$tty_link")")"
-		if [ ! -O "$tty_device" ]; then
+		if [ -z "$(find "$tty_device" -prune -user "$MYUID")" ]; then
 			log "gc_tty_links: removing $tty_link: $tty_device missing or not owned"
 			rm -f "$tty_link"
 			continue
 		fi
 		tty_sock="$(readlink "$tty_link")"
-		if [ ! -O "$tty_sock" ]; then
+		if [ -z "$(find "$tty_sock" -prune -user "$MYUID")" ]; then
 			log "gc_tty_links: removing $tty_link: $tty_sock missing or not owned"
 			rm -f "$tty_link"
 		fi
@@ -224,13 +229,13 @@ set_tty_link() {
 	gc_tty_links
 	gc_server_links
 
-	if [ -n "$SSH_AUTH_SOCK" ] && [ -O "$SSH_AUTH_SOCK" ]; then
+	if [ -n "${SSH_AUTH_SOCK:-}" ] && [ -n "$(find "$SSH_AUTH_SOCK" -prune -user "$MYUID")" ]; then
 		set_symlink "$SSH_AUTH_SOCK" "$(get_tty_link_path "$(tty)")"
 	fi
 }
 
 get_active_client_tty() {
-	if [ -n "$TMUX" ]; then
+	if [ -n "${TMUX:-}" ]; then
 		socket=$(echo "$TMUX" | cut -d, -f1)
 		tty=$(tmux -S "$socket" display-message -p '#{client_tty}')
 		log "get_active_client_tty $socket: $tty"
@@ -251,11 +256,13 @@ release_lock() {
 }
 
 take_lock() {
+	ensure_dir "$SOCKLINK_DIR"
+
 	n=10
-	locked=""
+	have_lock=""
 	while [ "$n" -gt "0" ]; do
 		if ( echo $$ >"$LOCKFILE" ) 2>>/dev/null; then
-			locked=1
+			have_lock=1
 			break
 		fi
 		sleep 0.1
@@ -267,11 +274,17 @@ take_lock() {
 		fi
 	done
 
-	if [ -z "$locked" ]; then
+	if [ -z "$have_lock" ]; then
 		log "can't take lockfile $LOCKFILE: locked by PID $(cat "$LOCKFILE")" t
 		exit 1
 	fi
 	trap release_lock INT TERM EXIT
+}
+
+run_with_lock() {
+	echo "LOCKFILE=$LOCKFILE"
+	take_lock
+	command "$@"
 }
 
 # Links the server's PID to the tty name of its currently active client.
@@ -279,9 +292,9 @@ take_lock() {
 # If the optional client_tty parameter is not given, looks up the currently
 # actively client by tmux's own reckoning.
 set_server_link() {
-	log "set_server_link: cause = '$cause_flag', client_tty = '$client_tty'"
+	log "set_server_link: cause = '${cause_flag:-}', client_tty = '${client_tty:-}'"
 
-	client_tty="$1"
+	client_tty="${1:-}"
 	if [ -z "$client_tty" ] || [ "$client_tty" = "-" ]; then
 		client_tty="$(get_active_client_tty)"
 	fi
@@ -319,7 +332,7 @@ set_server_link() {
 # scenarios I've been able to reproduce, so this lookup may not be strictly
 # necessary.
 set_server_link_by_name() {
-	client_name="$1"
+	client_name="${1:-}"
 	if [ -z "$client_name" ]; then
 		log "set_server_link_by_name: client_name not given" t
 		exit 1
@@ -337,12 +350,12 @@ set_server_link_by_name() {
 # sufficient to skip also setting SSH_AUTH_SOCK within in-tmux shells' init,
 # however.
 set_tmux_env() {
-	if [ -z "$TMUX" ]; then
+	if [ -z "${TMUX:-}" ]; then
 		log "set_tmux_env: \$TMUX not set, aborting" t
 		exit 1
 	fi
 	server_link="$(get_server_link_path)"
-	tmux set-environment -g SSH_AUTH_SOCK "$server_link"
+	tmux set-environment -g SSH_AUTH_SOCK "${server_link:-}"
 }
 
 # Allow for setting the server link with a client identified by name instead
@@ -524,7 +537,7 @@ check_number_at_least() {
 # unspecified, the version of the tmux on our $PATH is queried.
 test_tmux_feature() {
 	feature="$1"
-	verstr="$2"
+	verstr="${2:-}"
 	if [ -z "$verstr" ]; then
 		verstr="$(tmux -V)"
 	fi
@@ -598,7 +611,7 @@ elif [ "$1" = "test-tmux-feature" ]; then
 elif [ "$1" = "setup" ]; then
 	log "$*"
 	setup
-elif [ -n "$SOCKLINK_TESTONLY_COMMANDS" ]; then
+elif [ -n "${SOCKLINK_TESTONLY_COMMANDS:-}" ]; then
 	if [ "$1" = "get-device-filename" ]; then
 		get_device_filename "$2"
 	elif [ "$1" = "get-filename-device" ]; then
@@ -611,6 +624,9 @@ elif [ -n "$SOCKLINK_TESTONLY_COMMANDS" ]; then
 		stat_mode "$2"
 	elif [ "$1" = "get-pid-uid" ]; then
 		get_pid_uid "$2"
+	elif [ "$1" = "run-with-lock" ]; then
+		shift
+		run_with_lock "$@"
 	else
 		show_usage
 		exit 1
