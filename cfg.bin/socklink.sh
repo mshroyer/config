@@ -33,8 +33,8 @@
 #             fi
 #     fi
 #
-# Works on Debian 12, AlmaLinux 10, OpenBSD 7.7, FreeBSD 14.3, NetBSD 9.3, and
-# macOS Sequoia 15.4, among others.
+# Works on Debian, AlmaLinux 10, OpenBSD 7.9, FreeBSD 15.1, NetBSD 11, macOS
+# 27, and OpenIndiana 2026.04, among others.
 #
 # For the latest release or more info see:
 # https://github.com/mshroyer/socklink/
@@ -43,7 +43,7 @@
 # cluster, or at ~mshroyer/socklink.sh on MetaArray.
 #
 #
-# Copyright (c) 2025-26 Mark Shroyer
+# Copyright (c) 2025-2026 Mark Shroyer
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -64,7 +64,7 @@
 # SOFTWARE.
 
 
-VERSION="0.3.3"
+VERSION="0.3.4"
 
 set -euC  # noclobber for lock file
 
@@ -103,7 +103,7 @@ EOF
 }
 
 log() {
-	if [ -n "$SOCKLINK_LOG" ]; then
+	if [ -n "${SOCKLINK_LOG:-}" ]; then
 		echo "$(date +'%Y-%m-%d %H:%M:%S') $1" >>"$SOCKLINK_LOG"
 	fi
 	if [ -n "${2:-}" ]; then
@@ -144,6 +144,12 @@ stat_mode() {
 	esac
 }
 
+# Checks that a file or directory both exists and is owned by our UID.
+exists_and_we_own() {
+	match="$(find "$1" -prune -user "$MYUID" 2>&1)" || return 1
+	test -n "$match" || return 1
+}
+
 BUSYBOX_PS=
 get_pid_uid() {
 	# We could get an empty PID string if we attempt to read the lock file
@@ -174,7 +180,7 @@ ensure_dir() {
 	if [ ! -d "$1" ]; then
 		mkdir -m700 "$1"
 	fi
-	if [ -z "$(find "$1" -prune -user "$MYUID")" ]; then
+	if ! exists_and_we_own "$1"; then
 		log "expected $1 to be owned by UID $MYUID" 1
 		exit 1
 	fi
@@ -198,13 +204,13 @@ gc_tty_links() {
 		[ -L "$tty_link" ] || [ -e "$tty_link" ] || continue
 
 		tty_device="$(get_filename_device "$(basename "$tty_link")")"
-		if [ -z "$(find "$tty_device" -prune -user "$MYUID")" ]; then
+		if ! exists_and_we_own "$tty_device"; then
 			log "gc_tty_links: removing $tty_link: $tty_device missing or not owned"
 			rm -f "$tty_link"
 			continue
 		fi
 		tty_sock="$(readlink "$tty_link")"
-		if [ -z "$(find "$tty_sock" -prune -user "$MYUID")" ]; then
+		if ! exists_and_we_own "$tty_sock"; then
 			log "gc_tty_links: removing $tty_link: $tty_sock missing or not owned"
 			rm -f "$tty_link"
 		fi
@@ -229,7 +235,7 @@ set_tty_link() {
 	gc_tty_links
 	gc_server_links
 
-	if [ -n "${SSH_AUTH_SOCK:-}" ] && [ -n "$(find "$SSH_AUTH_SOCK" -prune -user "$MYUID")" ]; then
+	if [ -n "${SSH_AUTH_SOCK:-}" ] && exists_and_we_own "$SSH_AUTH_SOCK"; then
 		set_symlink "$SSH_AUTH_SOCK" "$(get_tty_link_path "$(tty)")"
 	fi
 }
@@ -622,11 +628,15 @@ elif [ -n "${SOCKLINK_TESTONLY_COMMANDS:-}" ]; then
 		has_manual_config "$2"
 	elif [ "${1:-}" = "stat-mode" ]; then
 		stat_mode "$2"
+	elif [ "${1:-}" = "exists-and-we-own" ]; then
+		exists_and_we_own "$2"
 	elif [ "${1:-}" = "get-pid-uid" ]; then
 		get_pid_uid "$2"
 	elif [ "${1:-}" = "run-with-lock" ]; then
 		shift
 		run_with_lock "$@"
+	elif [ "${1:-}" = "log" ]; then
+		log "${2:-}"
 	else
 		show_usage
 		exit 1
