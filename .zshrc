@@ -147,12 +147,24 @@ function cloud {
     if [ -f "$HOME/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/google-cloud-sdk/completion.zsh.inc"; fi
 }
 
+# We'll use socklink.sh from our ~/bin directory, which isn't tracked in this
+# git repo and has higher precedence in $PATH.  That way we can keep it hooked
+# up to the version distributed here by default, but override it on certain
+# systems, such as the SDF cluster where it's available under /sys/sdf, or my
+# dev server where I might want to use a -dev version.
+if [ ! -e "$HOME/bin/socklink.sh" ]; then
+	if [ ! -d "$HOME/bin" ]; then
+		mkdir "$HOME/bin"
+	fi
+	ln -s "$HOME/cfg.bin/socklink.sh" "$HOME/bin/socklink.sh"
+fi
+
 ### SOCKLINK INSTALLATION BEGIN
 if [[ -o interactive ]]; then
 	if [ -z "$TMUX" ]; then
-		"$HOME/cfg.bin/socklink.sh" set-tty-link -c shell-init
+		"$HOME/bin/socklink.sh" set-tty-link -c shell-init
 	else
-		export SSH_AUTH_SOCK="$("$HOME/cfg.bin/socklink.sh" show-server-link)"
+		export SSH_AUTH_SOCK="$("$HOME/bin/socklink.sh" show-server-link)"
 	fi
 fi
 ### SOCKLINK INSTALLATION END
