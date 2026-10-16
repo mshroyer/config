@@ -1,10 +1,10 @@
-HISTFILE=~/.zsh_histfile
-HISTSIZE=10000
-SAVEHIST=10000
-
 # Uncomment to enable startup profiling.  Also needs zprof uncommented at the
 # bottom.
 #zmodload zsh/zprof
+
+HISTFILE=~/.zsh_histfile
+HISTSIZE=10000
+SAVEHIST=10000
 
 if [ -d "$HOME/bin" ]; then
 	PATH="$PATH:$HOME/bin"
@@ -147,10 +147,6 @@ function cloud {
     if [ -f "$HOME/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/google-cloud-sdk/completion.zsh.inc"; fi
 }
 
-# Uncomment to enable startup profiling.  Also needs zmodload zsh/zprof
-# uncommented at the top.
-#zprof
-
 ### SOCKLINK INSTALLATION BEGIN
 if [[ -o interactive ]]; then
 	if [ -z "$TMUX" ]; then
@@ -160,3 +156,7 @@ if [[ -o interactive ]]; then
 	fi
 fi
 ### SOCKLINK INSTALLATION END
+
+# Uncomment to enable startup profiling.  Also needs zmodload zsh/zprof
+# uncommented at the top.
+#zprof
